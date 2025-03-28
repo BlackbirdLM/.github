@@ -1,0 +1,29 @@
+name: Commit with blackbird-bot
+
+on:
+  workflow_dispatch:  # manual trigger for testing
+
+jobs:
+  commit-as-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Make a change (example)
+      run: |
+        echo "Updated on $(date)" >> trace.log
+
+    - name: Configure Git identity
+      run: |
+        git config user.name "blackbird-bot"
+        git config user.email "blackbird-bot@users.noreply.github.com"
+
+    - name: Commit and push
+      env:
+        GH_TOKEN: ${{ secrets.BLACKBIRD_BOT_TOKEN }}
+      run: |
+        git add .
+        git commit -m "Auto update by blackbird-bot"
+        git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main
