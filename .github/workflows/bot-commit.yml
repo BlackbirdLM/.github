@@ -1,7 +1,21 @@
 name: Commit as blackbird-bot
 
 on:
-  workflow_dispatch:  # You can also use push, schedule, etc.
+  workflow_dispatch:
+    inputs:
+      type:
+        description: 'Commit type (feat, fix, chore)'
+        required: true
+        default: 'chore'
+      scope:
+        description: 'Scope (optional, e.g. trace, infra)'
+        required: false
+      issue:
+        description: 'Issue number (optional)'
+        required: false
+      message:
+        description: 'Commit message'
+        required: true
 
 jobs:
   commit-as-bot:
@@ -11,19 +25,36 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Make a change (example)
-        run: |
-          echo "Updated on $(date)" >> trace.log
-
       - name: Configure Git identity
         run: |
           git config user.name "blackbird-bot"
           git config user.email "blackbird-bot@users.noreply.github.com"
 
+      - name: Compose Commit Message
+        id: commitmsg
+        run: |
+          TYPE="${{ github.event.inputs.type }}"
+          SCOPE="${{ github.event.inputs.scope }}"
+          ISSUE="${{ github.event.inputs.issue }}"
+          MSG="${{ github.event.inputs.message }}"
+
+          if [ -n "$SCOPE" ]; then
+            SCOPE="(${SCOPE})"
+          fi
+          if [ -n "$ISSUE" ]; then
+            ISSUE="#$ISSUE "
+          fi
+
+          echo "msg=${TYPE}${SCOPE}: ${ISSUE}${MSG}" >> $GITHUB_OUTPUT
+
+      - name: Make a change (example)
+        run: |
+          echo "Triggered by bot at $(date)" >> trace.log
+
       - name: Commit and Push
         env:
           GH_TOKEN: ${{ secrets.BLACKBIRD_BOT_TOKEN }}
         run: |
-          git add .
-          git commit -m "Update by blackbird-bot"
+          git add trace.log
+          git commit -m "${{ steps.commitmsg.outputs.msg }}"
           git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main
